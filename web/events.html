@@ -1,0 +1,38 @@
+<html>
+<head>
+    <script type="module">
+        // Get Görli test Ether: https://goerli-faucet.pk910.de/
+
+        import { ethers } from "./ethers-5.6.esm.min.js";
+
+        const provider = new ethers.providers.JsonRpcProvider("https://goerli.infura.io/v3/f52e8964c7734baeafbd08a6ef7b3774");
+        const signer = provider.getSigner()
+
+        // You can also use an ENS name for the contract address
+        const contractAddress = "0x0394343Dbe3177b7eCC6cCCc12042357e31586B0";
+
+        // The Contract ABI
+        const response = await fetch("./DocAffirmation.json");
+        const contractJson = await response.json();
+        const contractAbi = contractJson.abi;
+
+        // The Contract object
+        const docAff = new ethers.Contract(contractAddress, contractAbi, provider);
+
+        console.log(docAff);
+
+        const eventFilter = {
+            address: contractAddress
+        }
+        provider.on(eventFilter, (log) => {
+            console.log(log);
+            console.log(docAff.interface.parseLog(log));
+            console.log("----");
+        });
+
+        window.docAff = docAff;
+
+        console.log("Started listener..");
+    </script>
+</head>
+</html>

@@ -1,0 +1,133 @@
+<html>
+<head>
+    <script type="module">
+        // Get Görli test Ether: https://goerli-faucet.pk910.de/
+
+        import { ethers } from "./ethers-5.6.esm.min.js";
+
+        // A Web3Provider wraps a standard Web3 provider, which is
+        // what MetaMask injects as window.ethereum into each page
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+
+        // MetaMask requires requesting permission to connect users accounts
+        await provider.send("eth_requestAccounts", []);
+
+        // The MetaMask plugin also allows signing transactions to
+        // send ether and pay to change state within the blockchain.
+        // For this, you need the account signer...
+        const signer = provider.getSigner()
+
+        // You can also use an ENS name for the contract address
+        const contractAddress = "0x0394343Dbe3177b7eCC6cCCc12042357e31586B0";
+
+        // The Contract ABI
+        const response = await fetch("./DocAffirmation.json");
+        const contractJson = await response.json();
+        const contractAbi = contractJson.abi;
+
+        // The Contract object
+        const docAff = new ethers.Contract(contractAddress, contractAbi, provider);
+
+        console.log(docAff);
+
+        window.createDocument = async function() {
+            const tx = await docAff.connect(signer).createDocumentEntry();
+            console.log(tx);
+            const rc = await tx.wait();
+            const event = rc.events.find(event => event.event === 'CreateDocumentEntry');
+            const [creator, id] = event.args;
+            console.log("Created", id, "by", creator);
+        }
+
+        window.resetDocumentEntry = async function(_id) {
+            const tx = await docAff.connect(signer).resetDocumentEntry(_id);
+            console.log(tx);
+            const rc = await tx.wait();
+            const event = rc.events.find(event => event.event === 'DocumentEntryVersion');
+            const [creator, id, version] = event.args;
+            console.log("Reset", id, "by", creator, "with version", version);
+        }
+
+        window.addDocumentToEntry = async function(_id, _docHash) {
+            const tx = await docAff.connect(signer).addDocumentToEntry(_id, _docHash);
+            console.log(tx);
+            const rc = await tx.wait();
+            const event1 = rc.events.find(event => event.event === 'AddDocumentEntry');
+            const [, id, docHash] = event1.args;
+            const event2 = rc.events.find(event => event.event === 'DocumentEntryVersion');
+            const [,, version] = event2.args;
+            console.log("Added", docHash, "with version", version, "to", id);
+        }
+
+        window.listDocumentsOnEntry = async function(_id) {
+            for (let i = 0; i < await docAff.docCount(_id); i++) {
+                const hash = await docAff.tokenDocuments(_id, i);
+                console.log("Document", hash.toHexString(), "on", i);
+            }
+        }
+
+        window.removeDocumentToEntry = async function(_id, _docHash) {
+            for (let i = 0; i < await docAff.docCount(_id); i++) {
+                const hash = await docAff.tokenDocuments(_id, i);
+                if (hash.toHexString() === _docHash) {
+                    //const tx = await docAff.connect(signer).removeDocumentToEntry(_id, _docHash, i);
+                    const tx = await docAff.connect(signer).removeDocumentToEntry(_id, _docHash, i, {gasLimit: 100000});
+                    console.log(tx);
+                    const rc = await tx.wait();
+                    const event1 = rc.events.find(event => event.event === 'RemoveDocumentEntry');
+                    const [, id, docHash] = event1.args;
+                    const event2 = rc.events.find(event => event.event === 'DocumentEntryVersion');
+                    const [,, version] = event2.args;
+                    console.log("Removed", docHash, "with version", version, "to", id);
+
+                    return;
+                }
+            }
+
+            console.warn("Document not found");
+        }
+
+        window.setViewer = async function(_id, _user) {
+            const tx = await docAff.connect(signer).setViewer(_id, _user);
+            console.log(tx);
+            await tx.wait();
+            console.log("Set viewer on", _id, "for", _user);
+        }
+
+        window.resetViewer = async function(_id, _user) {
+            const tx = await docAff.connect(signer).resetViewer(_id, _user);
+            console.log(tx);
+            await tx.wait();
+            console.log("Reset viewer on", _id, "for", _user);
+        }
+
+        window.setSigner = async function(_id, _user) {
+            const tx = await docAff.connect(signer).setSigner(_id, _user);
+            console.log(tx);
+            await tx.wait();
+            console.log("Set signer on", _id, "for", _user);
+        }
+
+        window.resetSigner = async function(_id, _user) {
+            const tx = await docAff.connect(signer).resetSigner(_id, _user);
+            console.log(tx);
+            await tx.wait();
+            console.log("Reset signer on", _id, "for", _user);
+        }
+
+        window.sign = async function(_id, _version) {
+            const tx = await docAff.connect(signer).sign(_id, _version);
+            console.log(tx);
+            await tx.wait();
+            console.log("Signed", _id, "on version", _version);
+        }
+
+        window.reject = async function(_id, _version) {
+            const tx = await docAff.connect(signer).reject(_id, _version);
+            console.log(tx);
+            await tx.wait();
+            console.log("Rejected", _id, "on version", _version);
+        }
+    </script>
+</head>
+</html>
